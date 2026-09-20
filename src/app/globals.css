@@ -1,0 +1,37 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  min-height: 100vh;
+}
+
+.tile {
+  @apply flex flex-col items-center justify-center rounded-tile shadow-[0_4px_0_rgba(0,0,0,0.2)] transition-transform;
+}
+
+.tile:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  @apply rounded-lg bg-letra-indigo px-6 py-3 font-display font-semibold text-white shadow-card transition hover:bg-letra-indigoDark hover:shadow-cardHover disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.card {
+  @apply rounded-xl border border-letra-border bg-white p-6 shadow-card;
+}
+
+.input-field {
+  @apply w-full rounded-lg border border-letra-border bg-[#FAFBFF] px-3.5 py-2.5 text-sm text-letra-ink outline-none transition focus:border-letra-indigo focus:bg-white focus:ring-2 focus:ring-letra-indigo/10;
+}
+
+.field-label {
+  @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-letra-ink2;
+}
+
+.badge-pill {
+  @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold;
+}
