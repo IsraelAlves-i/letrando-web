@@ -1,13 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STATUS_ASSINATURA } from "@/lib/statusAssinatura";
 
-const STATUS_OPCOES = [
-  { valor: "ativa", rotulo: "Ativa" },
-  { valor: "suspensa", rotulo: "Suspensa" },
-  { valor: "vencida", rotulo: "Vencida" },
-  { valor: "cancelada", rotulo: "Cancelada" },
-];
 
 export default function ModalMunicipio({ aberto, onFechar, onSalvar, municipioEditando }) {
   const [nome, setNome] = useState("");
@@ -15,7 +10,7 @@ export default function ModalMunicipio({ aberto, onFechar, onSalvar, municipioEd
   const [cnpj, setCnpj] = useState("");
   const [valorMensal, setValorMensal] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
-  const [statusAssinatura, setStatusAssinatura] = useState("ativa");
+  const [statusAssinatura, setStatusAssinatura] = useState("pago");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -26,9 +21,9 @@ export default function ModalMunicipio({ aberto, onFechar, onSalvar, municipioEd
       setCnpj(municipioEditando.cnpj ?? "");
       setValorMensal(municipioEditando.valor_mensal ?? "");
       setDataVencimento(municipioEditando.data_vencimento ?? "");
-      setStatusAssinatura(municipioEditando.status_assinatura ?? "ativa");
+      setStatusAssinatura(municipioEditando.status_assinatura ?? "pago");
     } else {
-      setNome(""); setUf(""); setCnpj(""); setValorMensal(""); setDataVencimento(""); setStatusAssinatura("ativa");
+      setNome(""); setUf(""); setCnpj(""); setValorMensal(""); setDataVencimento(""); setStatusAssinatura("pago");
     }
     setErro("");
   }, [municipioEditando, aberto]);
@@ -87,7 +82,7 @@ export default function ModalMunicipio({ aberto, onFechar, onSalvar, municipioEd
 
           <select value={statusAssinatura} onChange={(e) => setStatusAssinatura(e.target.value)}
             className="rounded-xl border border-letra-border px-3 py-2 text-sm">
-            {STATUS_OPCOES.map((s) => (
+            {STATUS_ASSINATURA.map((s) => (
               <option key={s.valor} value={s.valor}>{s.rotulo}</option>
             ))}
           </select>

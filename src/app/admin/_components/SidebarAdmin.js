@@ -7,6 +7,7 @@ const itens = [
   { icone: "🏫", nome: "Escolas", href: "/admin/escolas" },
   { icone: "💵", nome: "Financeiro", href: "/admin/financeiro" },
   { icone: "🧾", nome: "Fiscal", href: "/admin/fiscal" },
+  { icone: "📒", nome: "Contabilidade", href: "/admin/contabilidade" },
 ];
 
 export default function SidebarAdmin() {

@@ -28,7 +28,7 @@ export async function criarMunicipioComAssinatura({ nome, uf, cnpj, valorMensal,
       nome, uf, cnpj,
       valor_mensal: valorMensal,
       data_vencimento: dataVencimento,
-      status_assinatura: statusAssinatura || "ativa",
+      status_assinatura: statusAssinatura || "pago",
     })
     .select()
     .single();

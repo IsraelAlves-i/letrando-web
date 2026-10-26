@@ -10,19 +10,21 @@ function formatarData(data) {
 }
 
 /**
- * Gera um PDF simples no formato de NFS-e e dispara o download no navegador.
- * ⚠️ Documento SIMULADO (projeto acadêmico) — sem validade fiscal real.
+ * Gera um PDF simples no formato de NFS-e
+ //dispara o download no navegador.
+ * 
  *
  * @param {Object} params
- * @param {Object} params.nota - registro de nota_fiscal (numero, data_emissao, valor, codigo_verificacao, serie)
+ * @param {Object} params.nota - registro de nota_fiscal 
  * @param {string} params.municipioNome - nome do município/escola tomador do serviço
+ * @param {number} [params.aliquotaIss=5] - percentagem do imposto
  */
-export function gerarNotaFiscalPdf({ nota, municipioNome }) {
+export function gerarNotaFiscalPdf({ nota, municipioNome, aliquotaIss = 5}) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const margem = 20;
   let y = 20;
 
-  // Selo de simulação — deixa claro que não é documento fiscal real
+  // Selo de simulação
   doc.setFillColor(255, 243, 205);
   doc.rect(margem, y, 170, 10, "F");
   doc.setFontSize(9);
@@ -51,7 +53,7 @@ export function gerarNotaFiscalPdf({ nota, municipioNome }) {
   doc.line(margem, y, 190, y);
   y += 10;
 
-  // Prestador (você, dono do software)
+  // Prestador 
   doc.setFont(undefined, "bold");
   doc.text("PRESTADOR DE SERVIÇOS", margem, y);
   y += 6;
@@ -80,9 +82,30 @@ export function gerarNotaFiscalPdf({ nota, municipioNome }) {
   doc.text("Licenciamento de uso de software (SaaS) — plataforma Letrando", margem, y);
   y += 12;
 
+// imposto
+  const valorServico = nota.valor || 0;
+  const baseCalculo = valorServico; 
+  const valorIss = (baseCalculo * aliquotaIss) / 100;
+  const issRetido = 0; // Se houver retenção, alterar aqui <-----
+
+  doc.setFont(undefined, "bold");
+  doc.text("VALORES E IMPOSTOS (ISS)", margem, y);
+  y += 6;
+  doc.setFont(undefined, "normal");
+  doc.text(`Valor do Serviço: ${formatarReal(valorServico)}`, margem, y);
+  doc.text(`Base de Cálculo: ${formatarReal(baseCalculo)}`, margem + 85, y);
+  y += 6;
+  doc.text(`Alíquota: ${aliquotaIss}%`, margem, y);
+  doc.text(`Valor do ISS: ${formatarReal(valorIss)}`, margem + 85, y);
+  y += 6;
+  doc.text(`ISS Retido: ${formatarReal(issRetido)}`, margem, y);
+  y += 12;
+
   doc.line(margem, y, 190, y);
   y += 10;
 
+
+// valor total
   doc.setFontSize(13);
   doc.setFont(undefined, "bold");
   doc.text(`Valor total: ${formatarReal(nota.valor)}`, margem, y);

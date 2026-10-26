@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { listarFormasPagamento, criarFormaPagamento, registrarPagamento } from "@/lib/fiscal";
 
-export default function ModalRegistrarPagamento({ aberto, onFechar, onSalvo, escolaId, valorSugerido }) {
+export default function ModalRegistrarPagamento({ aberto, onFechar, onSalvo, municipioId, municipioNome, valorSugerido }) {
   const [formas, setFormas] = useState([]);
   const [formaPagamentoId, setFormaPagamentoId] = useState("");
   const [novaForma, setNovaForma] = useState(false);
@@ -15,15 +15,15 @@ export default function ModalRegistrarPagamento({ aberto, onFechar, onSalvo, esc
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    if (aberto && escolaId) {
-      listarFormasPagamento(escolaId).then(setFormas).catch(console.error);
+    if (aberto && municipioId) {
+      listarFormasPagamento(municipioId).then(setFormas).catch(console.error);
       setValor(valorSugerido ? String(valorSugerido) : "");
       setDataPagamento(new Date().toISOString().slice(0, 10));
       setNovaForma(false);
       setFormaPagamentoId("");
       setErro("");
     }
-  }, [aberto, escolaId, valorSugerido]);
+  }, [aberto, municipioId, valorSugerido]);
 
   if (!aberto) return null;
 
@@ -39,10 +39,10 @@ export default function ModalRegistrarPagamento({ aberto, onFechar, onSalvo, esc
     try {
       let formaId = formaPagamentoId;
       if (novaForma) {
-        const forma = await criarFormaPagamento({ escolaId, tipo: tipoNovaForma, dados: dadosNovaForma });
+        const forma = await criarFormaPagamento({ municipioId, tipo: tipoNovaForma, dados: dadosNovaForma });
         formaId = forma.id;
       }
-      const pagamento = await registrarPagamento({ escolaId, valor: Number(valor), dataPagamento, formaPagamentoId: formaId });
+      const pagamento = await registrarPagamento({ municipioId, valor: Number(valor), dataPagamento, formaPagamentoId: formaId });
       onSalvo(pagamento);
       onFechar();
     } catch (err) {
@@ -56,7 +56,8 @@ export default function ModalRegistrarPagamento({ aberto, onFechar, onSalvo, esc
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="mb-4 font-display text-lg font-extrabold text-letra-ink">Registrar pagamento</h2>
+        <h2 className="font-display text-lg font-extrabold text-letra-ink">Registrar pagamento</h2>
+        <p className="mb-4 text-xs text-letra-ink2">Município: <strong>{municipioNome ?? "—"}</strong></p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input type="number" step="0.01" placeholder="Valor pago (R$)" value={valor}

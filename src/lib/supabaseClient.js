@@ -38,8 +38,7 @@ export async function signUpAluno({ nome, email, senha, codigoTurma }) {
 
   // 1. Buscar a turma pelo código de acesso
   // (exige a policy "publico_pode_validar_codigo_turma" no RLS — ver
-  // Letrando_RLS_Fix_Cadastro.sql, sem ela essa consulta sempre retorna vazio
-  // porque o usuário ainda não está autenticado neste momento.)
+  // Letrando_RLS_Fix_Cadastro.sql.
   const { data: turma, error: erroTurma } = await supabase
     .from("turma")
     .select("id, escola_id")
