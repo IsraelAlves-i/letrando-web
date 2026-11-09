@@ -10,7 +10,9 @@ Plataforma web gamificada de ortografia para escolas. Front-end em Next.js
    ```bash
    npm install
    ```
-
+    npm install jspdf
+    ```
+    npm run dev
 
 ## Estrutura de pastas
 
