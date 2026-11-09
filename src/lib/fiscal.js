@@ -2,32 +2,32 @@ import { supabase } from "@/lib/supabaseClient";
 
 // --- Formas de pagamento e pagamentos ---
 
-export async function listarFormasPagamento(escolaId) {
+export async function listarFormasPagamento(municipioId) {
   const { data, error } = await supabase
     .from("forma_pagamento")
     .select("id, tipo, dados, ativa")
-    .eq("escola_id", escolaId)
+    .eq("municipio_id", municipioId)
     .eq("ativa", true)
     .order("tipo");
   if (error) throw error;
   return data;
 }
 
-export async function criarFormaPagamento({ escolaId, tipo, dados }) {
+export async function criarFormaPagamento({ municipioId, tipo, dados }) {
   const { data, error } = await supabase
     .from("forma_pagamento")
-    .insert({ escola_id: escolaId, tipo, dados, ativa: true })
+    .insert({ municipio_id: municipioId, tipo, dados, ativa: true })
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-export async function registrarPagamento({ escolaId, valor, dataPagamento, formaPagamentoId }) {
+export async function registrarPagamento({ municipioId, valor, dataPagamento, formaPagamentoId }) {
   const { data, error } = await supabase
     .from("pagamento")
     .insert({
-      escola_id: escolaId,
+      municipio_id: municipioId,
       valor,
       data_pagamento: dataPagamento,
       forma_pagamento_id: formaPagamentoId,
@@ -41,11 +41,11 @@ export async function registrarPagamento({ escolaId, valor, dataPagamento, forma
 
 // --- Pagamentos + Notas Fiscais ---
 
-export async function listarPagamentosComNotas(escolaId, mes, ano) {
+export async function listarPagamentosComNotas(municipioId, mes, ano) {
   let query = supabase
     .from("pagamento")
-    .select("id, valor, data_pagamento, status, escola_id")
-    .eq("escola_id", escolaId)
+    .select("id, valor, data_pagamento, status, municipio_id")
+    .eq("municipio_id", municipioId)
     .order("data_pagamento", { ascending: false });
 
   if (mes && ano) {
@@ -60,7 +60,7 @@ export async function listarPagamentosComNotas(escolaId, mes, ano) {
   const { data: notas, error: errNotas } = await supabase
     .from("nota_fiscal")
     .select("*")
-    .eq("escola_id", escolaId);
+    .eq("municipio_id", municipioId);
   if (errNotas) throw errNotas;
 
   return (pagamentos ?? []).map((p) => {
@@ -73,10 +73,10 @@ export async function listarPagamentosComNotas(escolaId, mes, ano) {
   });
 }
 
-export async function emitirNota({ pagamentoId, escolaId, valor, numeroRps }) {
+export async function emitirNota({ pagamentoId, municipioId, valor, numeroRps }) {
   const { data, error } = await supabase
     .from("nota_fiscal")
-    .insert({ pagamento_id: pagamentoId, escola_id: escolaId, valor, numero_rps: numeroRps || null, status: "pendente" })
+    .insert({ pagamento_id: pagamentoId, municipio_id: municipioId, valor, numero_rps: numeroRps || null, status: "pendente" })
     .select()
     .single();
   if (error) throw error;
@@ -117,7 +117,7 @@ export async function reemitirNota(notaOriginal) {
     .from("nota_fiscal")
     .insert({
       pagamento_id: notaOriginal.pagamento_id,
-      escola_id: notaOriginal.escola_id,
+      municipio_id: notaOriginal.municipio_id,
       valor: notaOriginal.valor,
       nota_original_id: notaOriginal.id,
       status: "pendente",

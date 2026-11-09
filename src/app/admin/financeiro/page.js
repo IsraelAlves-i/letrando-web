@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import SidebarAdmin from "../_components/SidebarAdmin";
+import MesAnoFields, { periodoValido } from "../_components/MesAnoFields";
 import ModalLancamento from "./_components/ModalLancamento";
+import StatusBadge from "../_components/StatusBadge";
 import {
   listarLancamentos,
   buscarResumoMensal,
   buscarFluxoCaixaMensal,
   iconeDaCategoria,
+  listarSituacaoMunicipios,
 } from "@/lib/financeiro";
 
 function formatarReal(valor) {
@@ -21,26 +24,33 @@ const NOMES_MES = [
 
 export default function FinanceiroPage() {
   const hoje = new Date();
+  // mes e ano podem ficar null enquanto a pessoa digita
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [resumo, setResumo] = useState({ entradas_total: 0, saidas_total: 0 });
   const [fluxo, setFluxo] = useState([]);
   const [lancamentos, setLancamentos] = useState([]);
+  const [situacao, setSituacao] = useState([]);
   const [modalAberto, setModalAberto] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
   const carregarDados = useCallback(async () => {
+    // Só busca quando mês (1–12) e ano (4 dígitos) estão completos
+    if (!periodoValido(mes, ano)) return;
     setCarregando(true);
+    setErro("");
     try {
-      const [resumoData, fluxoData, lancamentosData] = await Promise.all([
+      const [resumoData, fluxoData, lancamentosData, situacaoData] = await Promise.all([
         buscarResumoMensal(mes, ano),
         buscarFluxoCaixaMensal(6),
         listarLancamentos({ mes, ano }),
+        listarSituacaoMunicipios(),
       ]);
       setResumo(resumoData);
       setFluxo(fluxoData);
       setLancamentos(lancamentosData);
+      setSituacao(situacaoData);
     } catch (err) {
       console.error("Erro ao carregar financeiro:", err);
       setErro("Não foi possível carregar os dados financeiros.");
@@ -65,17 +75,7 @@ export default function FinanceiroPage() {
             <h1 className="font-display text-lg font-extrabold text-letra-ink">Financeiro</h1>
             <div className="flex items-center gap-2">
               <p className="text-xs text-letra-ink2">Visão consolidada da empresa ·</p>
-              <select value={mes} onChange={(e) => setMes(Number(e.target.value))} className="rounded border border-letra-border px-1 text-xs">
-                {NOMES_MES.map((nome, i) => (
-                  <option key={nome} value={i + 1}>{nome}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                value={ano}
-                onChange={(e) => setAno(Number(e.target.value))}
-                className="w-16 rounded border border-letra-border px-1 text-xs"
-              />
+              <MesAnoFields mes={mes} ano={ano} onMesChange={setMes} onAnoChange={setAno} />
             </div>
           </div>
           <button
@@ -194,6 +194,38 @@ export default function FinanceiroPage() {
                   </div>
                 </section>
               </div>
+
+              {/* Terceira tabela: situação das assinaturas por município */}
+              <section className="card mt-5 overflow-hidden !p-0">
+                <div className="border-b border-letra-border px-5 py-3.5">
+                  <h3 className="text-sm font-extrabold text-letra-ink">🧾 Situação das assinaturas por município</h3>
+                  <p className="text-[11px] text-letra-ink2">Pago · Vencido 30 dias · Vencido 60 dias · Cancelado (alterado em Escolas → Configurar município)</p>
+                </div>
+                {situacao.length === 0 ? (
+                  <p className="px-5 py-4 text-xs text-letra-ink3">Nenhum município cadastrado.</p>
+                ) : (
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="bg-[#F8FAFC] text-[10px] font-bold uppercase tracking-wide text-letra-ink2">
+                        <th className="px-5 py-2">Município</th>
+                        <th className="px-5 py-2">Valor mensal</th>
+                        <th className="px-5 py-2">Vencimento</th>
+                        <th className="px-5 py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-letra-border">
+                      {situacao.map((m) => (
+                        <tr key={m.id}>
+                          <td className="px-5 py-3 font-semibold text-letra-ink">{m.nome}{m.uf ? ` — ${m.uf}` : ""}</td>
+                          <td className="px-5 py-3 font-bold text-letra-lilac">{formatarReal(m.valor_mensal)}</td>
+                          <td className="px-5 py-3 text-letra-ink2">{m.data_vencimento ? new Date(m.data_vencimento).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—"}</td>
+                          <td className="px-5 py-3"><StatusBadge status={m.status_assinatura} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </section>
             </>
           )}
         </div>

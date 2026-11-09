@@ -145,3 +145,17 @@ export async function buscarFluxoCaixaMensal(quantidadeMeses = 6) {
   if (error) throw error;
   return (data ?? []).reverse();
 }
+
+// --- Situação das assinaturas (terceira tabela do Financeiro) ---
+// Mostra, por município: valor mensal, vencimento e status
+// (Pago / Vencido 30 dias / Vencido 60 dias / Cancelado).
+
+export async function listarSituacaoMunicipios() {
+  const { data, error } = await supabase
+    .from("municipio")
+    .select("id, nome, uf, valor_mensal, status_assinatura, data_vencimento")
+    .order("nome");
+
+  if (error) throw error;
+  return data ?? [];
+}

@@ -4,33 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import SidebarAdmin from "../_components/SidebarAdmin";
 import ModalEscola from "./_components/ModalEscola";
 import ModalMunicipio from "./_components/ModalMunicipio";
+import StatusBadge from "../_components/StatusBadge";
 import {
   listarEscolas, listarMunicipiosComAssinatura,
   criarEscola, atualizarEscola, criarMunicipioComAssinatura, atualizarMunicipio,
 } from "@/lib/escolas";
 
-const corStatus = {
-  ativa: "bg-letra-mintSoft text-[#065F46]",
-  vencendo: "bg-letra-goldSoft text-[#7A4F00]",
-  suspensa: "bg-letra-roseSoft text-letra-rose",
-  vencida: "bg-letra-roseSoft text-letra-rose",
-  cancelada: "bg-letra-bg text-letra-ink3",
-};
-const rotuloStatus = {
-  ativa: "Ativa ✓",
-  vencendo: "Vencendo",
-  suspensa: "Suspensa",
-  vencida: "Vencida",
-  cancelada: "Cancelada",
-};
 
-function calcularStatusExibicao(municipio) {
-  if (municipio.status_assinatura !== "ativa") return municipio.status_assinatura;
-  if (!municipio.data_vencimento) return "ativa";
-  const diffDias = Math.ceil((new Date(municipio.data_vencimento) - new Date()) / 86400000);
-  if (diffDias >= 0 && diffDias <= 30) return "vencendo";
-  return "ativa";
-}
 
 function formatarData(iso) {
   if (!iso) return "—";
@@ -73,18 +53,18 @@ export default function GestaoEscolasPage() {
 
   useEffect(() => { carregarDados(); }, [carregarDados]);
 
-  const municipiosComStatus = municipios.map((m) => ({ ...m, statusExibicao: calcularStatusExibicao(m) }));
-  const municipiosAtivos = municipiosComStatus.filter((m) => m.statusExibicao === "ativa" || m.statusExibicao === "vencendo");
-  const mrrTotal = municipiosAtivos.reduce((acc, m) => acc + Number(m.valor_mensal || 0), 0);
+  const municipiosComStatus = municipios;
+  const municipiosPagos = municipiosComStatus.filter((m) => m.status_assinatura === "pago");
+  const mrrTotal = municipiosPagos.reduce((acc, m) => acc + Number(m.valor_mensal || 0), 0);
   const totalProfessores = escolas.reduce((acc, e) => acc + e.totalProfessores, 0);
   const totalAlunos = escolas.reduce((acc, e) => acc + e.totalAlunos, 0);
-  const vencendoEm30 = municipiosComStatus.filter((m) => m.statusExibicao === "vencendo").length;
+  const emAtraso = municipiosComStatus.filter((m) => m.status_assinatura === "vencido_30" || m.status_assinatura === "vencido_60").length;
 
   const kpis = [
-    { icone: "🏛️", cor: "bg-letra-lilacSoft", label: "Municípios ativos", valor: municipiosAtivos.length },
+    { icone: "🏛️", cor: "bg-letra-lilacSoft", label: "Municípios pagos", valor: municipiosPagos.length },
     { icone: "💰", cor: "bg-letra-mintSoft", label: "MRR total", valor: formatarReal(mrrTotal), valorCor: "text-letra-mint" },
     { icone: "🏫", cor: "bg-letra-indigoSoft", label: "Escolas cadastradas", valor: escolas.length, valorCor: "text-letra-indigo" },
-    { icone: "⚠️", cor: "bg-letra-roseSoft", label: "Vencendo em 30 dias", valor: vencendoEm30, valorCor: "text-letra-rose" },
+    { icone: "⚠️", cor: "bg-letra-roseSoft", label: "Em atraso (30/60 dias)", valor: emAtraso, valorCor: "text-letra-rose" },
   ];
 
   const escolasFiltradas = useMemo(() => {
@@ -186,11 +166,11 @@ export default function GestaoEscolasPage() {
                       </td>
                       <td className="px-5 py-3 text-letra-ink2">{m.qtdEscolas}</td>
                       <td className="px-5 py-3 font-bold text-letra-lilac">{formatarReal(m.valor_mensal)}</td>
-                      <td className={`px-5 py-3 ${m.statusExibicao === "vencendo" ? "font-semibold text-letra-rose" : "text-letra-ink2"}`}>
-                        {formatarData(m.data_vencimento)} {m.statusExibicao === "vencendo" && "⚠️"}
+                      <td className={`px-5 py-3 ${m.status_assinatura.startsWith("vencido") ? "font-semibold text-letra-rose" : "text-letra-ink2"}`}>
+                        {formatarData(m.data_vencimento)}
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`badge-pill ${corStatus[m.statusExibicao]}`}>{rotuloStatus[m.statusExibicao]}</span>
+                        <StatusBadge status={m.status_assinatura} />
                       </td>
                       <td className="px-5 py-3">
                         <button onClick={() => abrirConfigMunicipio(m)} className="text-xs font-bold text-letra-indigo hover:underline">

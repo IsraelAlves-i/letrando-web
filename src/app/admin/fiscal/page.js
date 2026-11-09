@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import SidebarAdmin from "../_components/SidebarAdmin";
+import MesAnoFields, { periodoValido } from "../_components/MesAnoFields";
 import ModalRegistrarPagamento from "./_components/ModalRegistrarPagamento";
 import ModalNotaFiscal from "./_components/ModalNotaFiscal";
 import ModalCancelarNota from "./_components/ModalCancelarNota";
 import ModalApuracao from "./_components/ModalApuracao";
-import { listarEscolas } from "@/lib/escolas";
+import { listarMunicipiosComAssinatura } from "@/lib/escolas";
 import { gerarNotaFiscalPdf } from "@/lib/gerarNotaPdf";
 import {
   listarPagamentosComNotas, emitirNota, confirmarEmissao, cancelarNota, reemitirNota,
@@ -19,15 +20,24 @@ const corStatusNota = {
   emitida: "bg-letra-mintSoft text-[#065F46]",
 };
 
+// "Nome — UF", o mesmo texto que aparecia na lista
+const rotuloMunicipio = (m) => `${m.nome}${m.uf ? ` — ${m.uf}` : ""}`;
+
+// minúsculas e sem acento, para comparar o que a pessoa digitou
+const normalizar = (s) =>
+  String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
 export default function FiscalPage() {
   const [aba, setAba] = useState("notas");
 
   const hoje = new Date();
+  // mes e ano podem ficar null enquanto a pessoa digita
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
 
-  const [escolas, setEscolas] = useState([]);
-  const [escolaId, setEscolaId] = useState("");
+  const [municipios, setMunicipios] = useState([]);
+  const [municipioId, setMunicipioId] = useState("");
+  const [municipioBusca, setMunicipioBusca] = useState("");
   const [pagamentos, setPagamentos] = useState([]);
   const [carregandoNotas, setCarregandoNotas] = useState(true);
   const [modalPagamentoAberto, setModalPagamentoAberto] = useState(false);
@@ -41,20 +51,30 @@ export default function FiscalPage() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    listarEscolas()
-      .then((data) => { setEscolas(data); if (data.length > 0) setEscolaId(data[0].id); else setCarregandoNotas(false); })
-      .catch((err) => { console.error(err); setErro("Não foi possível carregar as escolas."); setCarregandoNotas(false); });
+    listarMunicipiosComAssinatura()
+      .then((data) => {
+        setMunicipios(data);
+        if (data.length > 0) {
+          setMunicipioId(data[0].id);
+          setMunicipioBusca(rotuloMunicipio(data[0]));
+        } else {
+          setCarregandoNotas(false);
+        }
+      })
+      .catch((err) => { console.error(err); setErro("Não foi possível carregar os municípios."); setCarregandoNotas(false); });
   }, []);
 
   const carregarPagamentos = useCallback(async (id) => {
     if (!id) return;
+    // Só busca quando mês (1–12) e ano (4 dígitos) estão completos
+    if (!periodoValido(mes, ano)) return;
     setCarregandoNotas(true);
     try { setPagamentos(await listarPagamentosComNotas(id, mes, ano)); }
     catch (err) { console.error(err); setErro("Não foi possível carregar os pagamentos."); }
     finally { setCarregandoNotas(false); }
   }, [mes, ano]);
 
-  useEffect(() => { if (escolaId) carregarPagamentos(escolaId); }, [escolaId, mes, ano, carregarPagamentos]);
+  useEffect(() => { if (municipioId) carregarPagamentos(municipioId); }, [municipioId, mes, ano, carregarPagamentos]);
 
   const carregarApuracoes = useCallback(async () => {
     setCarregandoApuracoes(true);
@@ -65,25 +85,48 @@ export default function FiscalPage() {
 
   useEffect(() => { if (aba === "tributos") carregarApuracoes(); }, [aba, carregarApuracoes]);
 
-  const escolaAtual = escolas.find((e) => e.id === escolaId);
+  const municipioAtual = municipios.find((m) => m.id === municipioId);
+
+  // Município digitável: seleciona quando o texto bate com uma opção da lista
+  function handleMunicipioChange(e) {
+    const texto = e.target.value;
+    setMunicipioBusca(texto);
+    const exato = municipios.find((m) => normalizar(rotuloMunicipio(m)) === normalizar(texto));
+    if (exato) setMunicipioId(exato.id);
+  }
+
+  // Ao sair do campo: se sobrou só uma opção compatível, usa ela; senão volta ao município atual
+  function handleMunicipioBlur() {
+    const termo = normalizar(municipioBusca);
+    const exato = municipios.find((m) => normalizar(rotuloMunicipio(m)) === termo);
+    if (exato) { setMunicipioId(exato.id); setMunicipioBusca(rotuloMunicipio(exato)); return; }
+
+    const parecidos = termo ? municipios.filter((m) => normalizar(rotuloMunicipio(m)).includes(termo)) : [];
+    if (parecidos.length === 1) {
+      setMunicipioId(parecidos[0].id);
+      setMunicipioBusca(rotuloMunicipio(parecidos[0]));
+    } else if (municipioAtual) {
+      setMunicipioBusca(rotuloMunicipio(municipioAtual));
+    }
+  }
 
   async function handleSalvarNota(dados) {
     if (modalNota.modo === "emitir") {
-      await emitirNota({ pagamentoId: modalNota.pagamento.id, escolaId, valor: modalNota.pagamento.valor, numeroRps: dados.numeroRps });
+      await emitirNota({ pagamentoId: modalNota.pagamento.id, municipioId, valor: modalNota.pagamento.valor, numeroRps: dados.numeroRps });
     } else {
       await confirmarEmissao(modalNota.nota.id, dados);
     }
-    await carregarPagamentos(escolaId);
+    await carregarPagamentos(municipioId);
   }
 
   async function handleCancelarNota(motivo) {
     await cancelarNota(modalCancelar.id, motivo);
-    await carregarPagamentos(escolaId);
+    await carregarPagamentos(municipioId);
   }
 
   async function handleReemitir(nota) {
     await reemitirNota(nota);
-    await carregarPagamentos(escolaId);
+    await carregarPagamentos(municipioId);
   }
 
   async function handleMarcarPago(apuracao) {
@@ -120,18 +163,30 @@ export default function FiscalPage() {
             <>
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <select value={escolaId} onChange={(e) => setEscolaId(e.target.value)}
-                    className="rounded border border-letra-border px-2 py-1.5 text-sm">
-                    {escolas.map((e) => (<option key={e.id} value={e.id}>{e.nome}</option>))}
-                  </select>
-                  <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                    className="rounded border border-letra-border px-2 py-1.5 text-sm">
-                    {NOMES_MES.map((nome, i) => (<option key={nome} value={i + 1}>{nome}</option>))}
-                  </select>
-                  <input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                    className="w-20 rounded border border-letra-border px-2 py-1.5 text-sm" />
+                  {/* Município / UF: digite para filtrar (ex.: "curi" ou "PR") */}
+                  <input
+                    list="lista-municipios"
+                    value={municipioBusca}
+                    onChange={handleMunicipioChange}
+                    onBlur={handleMunicipioBlur}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="Município ou UF"
+                    autoComplete="off"
+                    aria-label="Município ou UF"
+                    className="w-64 rounded border border-letra-border px-2 py-1.5 text-sm"
+                  />
+                  <datalist id="lista-municipios">
+                    {municipios.map((m) => (<option key={m.id} value={rotuloMunicipio(m)} />))}
+                  </datalist>
+
+                  <MesAnoFields
+                    mes={mes} ano={ano} onMesChange={setMes} onAnoChange={setAno}
+                    mesClassName="w-12 rounded border border-letra-border px-2 py-1.5 text-sm"
+                    nomeClassName="w-24 text-sm text-letra-ink2"
+                    anoClassName="w-20 rounded border border-letra-border px-2 py-1.5 text-sm"
+                  />
                 </div>
-                <button onClick={() => setModalPagamentoAberto(true)} disabled={!escolaId}
+                <button onClick={() => setModalPagamentoAberto(true)} disabled={!municipioId}
                   className="btn-primary !bg-letra-lilac !px-4 !py-2 text-sm hover:!bg-[#6B2FD6] disabled:opacity-50">
                   + Registrar pagamento
                 </button>
@@ -139,7 +194,7 @@ export default function FiscalPage() {
 
               <section className="card overflow-hidden !p-0">
                 <div className="border-b border-letra-border px-5 py-3.5">
-                  <h3 className="text-sm font-extrabold text-letra-ink">Pagamentos e Notas — {escolaAtual?.nome}</h3>
+                  <h3 className="text-sm font-extrabold text-letra-ink">Pagamentos e Notas — {municipioAtual?.nome}</h3>
                 </div>
                 {carregandoNotas ? (
                   <p className="px-5 py-4 text-sm text-letra-ink2">Carregando...</p>
@@ -187,7 +242,7 @@ export default function FiscalPage() {
                             )}
                             {p.notaAtiva?.status === "emitida" && (
                               <div className="flex gap-3">
-                                <button onClick={() => gerarNotaFiscalPdf({ nota: p.notaAtiva, municipioNome: escolaAtual?.nome })} className="text-xs font-bold text-letra-mint hover:underline">Baixar PDF</button>
+                                <button onClick={() => gerarNotaFiscalPdf({ nota: p.notaAtiva, municipioNome: municipioAtual ? rotuloMunicipio(municipioAtual) : undefined })} className="text-xs font-bold text-letra-mint hover:underline">Baixar PDF</button>
                                 <button onClick={() => setModalCancelar(p.notaAtiva)} className="text-xs font-bold text-letra-rose hover:underline">Cancelar</button>
                               </div>
                             )}
@@ -281,7 +336,7 @@ export default function FiscalPage() {
       </div>
 
       <ModalRegistrarPagamento aberto={modalPagamentoAberto} onFechar={() => setModalPagamentoAberto(false)}
-        onSalvo={() => carregarPagamentos(escolaId)} escolaId={escolaId} valorSugerido={escolaAtual?.municipio?.valor_mensal} />
+        onSalvo={() => carregarPagamentos(municipioId)} municipioId={municipioId} municipioNome={municipioAtual?.nome} valorSugerido={municipioAtual?.valor_mensal} />
 
       <ModalNotaFiscal aberto={!!modalNota} onFechar={() => setModalNota(null)}
         onSalvar={handleSalvarNota} modo={modalNota?.modo} pagamento={modalNota?.pagamento} />
