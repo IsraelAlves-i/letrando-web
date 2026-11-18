@@ -49,7 +49,7 @@ export async function signUpAluno({ nome, email, senha, codigoTurma }) {
     return { data: null, error: { message: "Código de turma inválido." } };
   }
 
-  // 2. Criar o usuário no Auth AL
+  // 2. Criar o usuário no Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password: senha,
@@ -81,24 +81,30 @@ export async function signUpProfessor({ nome, email, senha, codigoEscola }) {
   // valida o código da escola antes de criar a conta, com mensagem clara.
   if (modoDemo) return respostaDemo(nome, "professor");
 
-  // 1. Buscar a escola pelo código de acesso e checar se a assinatura está ativa
-  // (exige a policy "publico_pode_validar_codigo_escola" no RLS)
-  const { data: escola, error: erroEscola } = await supabase
-    .from("escola")
-    .select("id, nome, status_assinatura")
-    .eq("codigo_acesso", codigoEscola)
-    .single();
+  // 1. Validar o código da escola e a licença no banco (função validar_codigo_escola).
+  // A função olha o status da escola e também o do município contratante,
+  // e devolve a mensagem pronta para o usuário (código inválido, licença
+  // cancelada, acesso suspenso ou assinatura vencida).
+  const { data: validacao, error: erroValidacao } = await supabase.rpc(
+    "validar_codigo_escola",
+    { p_codigo: codigoEscola }
+  );
 
-  if (erroEscola || !escola) {
-    return { data: null, error: { message: "Código de escola inválido." } };
-  }
-
-  if (escola.status_assinatura !== "ativa") {
+  if (erroValidacao) {
     return {
       data: null,
-      error: { message: "A assinatura desta escola está inativa. Contate a administração do Letrando." },
+      error: { message: "Não foi possível validar o código da escola. Tente novamente." },
     };
   }
+
+  if (!validacao?.ok) {
+    return {
+      data: null,
+      error: { message: validacao?.mensagem || "Código de escola inválido." },
+    };
+  }
+
+  const escola = { id: validacao.escola_id, nome: validacao.escola_nome };
 
   // 2. Criar o usuário no Auth
   const { data, error } = await supabase.auth.signUp({
